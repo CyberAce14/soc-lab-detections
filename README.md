@@ -60,8 +60,9 @@ All rules include severity tiers, MITRE mapping comments, and are tuned against 
 End-to-end alert automation pipeline built on n8n v2.23.3:
 
 ```
-Sentinel Alert → n8n Trigger → GPT-4.1 Mini Triage
-    → AbuseIPDB Enrichment → IRIS Case Auto-Creation → Slack Notification
+Elastic SIEM Alert → n8n Webhook → FP Filter → Dedup Check
+    → GPT-4.1 Mini Triage (+ AbuseIPDB Tool) → Severity Mapper
+    → Slack Notification → IRIS Case Auto-Creation
 ```
 
 - **134+ alerts processed** with zero manual handling
