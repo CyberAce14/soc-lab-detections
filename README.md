@@ -17,6 +17,7 @@ Production detection rules, Wazuh configurations, and SOAR automation pipeline a
 ```
 soc-lab-detections/
 ├── kql-detection-rules/     # Microsoft Sentinel KQL analytics rules (7 live)
+├── elk-detection-rules/     # Elastic SIEM EQL detection rules (4 deployed — SOAR webhook source)
 ├── wazuh-detection-rules/   # Custom Wazuh XML rules (4 deployed)
 ├── soar-pipeline/           # n8n SOAR pipeline — triggered by Elastic (ELK) SIEM (134+ alerts processed)
 └── architecture/            # SOC-LAB environment overview
@@ -39,6 +40,19 @@ soc-lab-detections/
 | `T1078.004-impossible-travel.kql` | Sign-ins from geographically impossible locations | T1078.004 |
 
 All rules include severity tiers, MITRE mapping comments, and are tuned against 14+ days of historical logs to eliminate false positives before going live.
+
+---
+
+## Elastic SIEM — EQL Detection Rules
+
+4 custom EQL rules deployed in Kibana Security, generating alerts that trigger the n8n SOAR pipeline via webhook:
+
+| Rule File | Description | MITRE TTP |
+|---|---|---|
+| `T1110-brute-force-ssh.eql` | SSH brute force sequence — 5 failures then success | T1110.001 |
+| `T1059.001-powershell-suspicious-exec.eql` | Suspicious PowerShell flags and download cradles | T1059.001 |
+| `T1071-c2-beacon-detection.eql` | Periodic outbound C2 beacon pattern via Zeek | T1071.001 |
+| `T1055-process-injection.eql` | Unusual parent-child process relationships | T1055 |
 
 ---
 

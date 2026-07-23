@@ -1,0 +1,37 @@
+// ============================================================
+// T1059.001 — Suspicious PowerShell Execution
+// Detects PowerShell processes spawned with obfuscation flags,
+// download cradles, or execution policy bypass — commonly used
+// for initial access, lateral movement, and payload delivery.
+// MITRE ATT&CK: T1059.001 — Command and Scripting Interpreter: PowerShell
+// Platform: Elastic SIEM (EQL) — requires Winlogbeat (Event ID 4688)
+//           or Elastic Agent with Windows integration
+// Author: Oscar Njumbe | SOC-LAB
+// ============================================================
+
+process where event.type == "start"
+  and process.name : ("powershell.exe", "pwsh.exe")
+  and (
+    process.command_line : (
+      "*-EncodedCommand*",
+      "*-enc *",
+      "*IEX(*",
+      "*Invoke-Expression*",
+      "*DownloadString*",
+      "*DownloadFile*",
+      "*Net.WebClient*",
+      "*-ExecutionPolicy Bypass*",
+      "*-WindowStyle Hidden*",
+      "*FromBase64String*",
+      "*Invoke-WebRequest*",
+      "*System.Reflection.Assembly*"
+    )
+  )
+
+// -------------------------------------------------------
+// Additional context: flag on unusual parent processes
+// PowerShell should rarely be spawned by Office apps or browsers
+// -------------------------------------------------------
+// sequence by process.entity_id with maxspan=30s
+//   [process where process.name : ("winword.exe","excel.exe","outlook.exe","chrome.exe","msedge.exe")]
+//   [process where process.name : ("powershell.exe","pwsh.exe","cmd.exe","wscript.exe")]

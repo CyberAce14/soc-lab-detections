@@ -1,0 +1,48 @@
+// ============================================================
+// T1055 — Process Injection via Unusual Parent-Child Relationship
+// Detects high-value processes (lsass, svchost, explorer) spawning
+// unexpected child processes — a common indicator of process
+// injection or hollowing techniques.
+// MITRE ATT&CK: T1055 — Process Injection
+// Platform: Elastic SIEM (EQL) — requires Winlogbeat (Event ID 4688)
+//           or Elastic Agent with Windows integration + Sysmon
+// Author: Oscar Njumbe | SOC-LAB
+// ============================================================
+
+// Pattern 1: Sensitive process spawning unexpected children
+process where event.type == "start"
+  and process.parent.name : (
+    "lsass.exe",
+    "svchost.exe",
+    "explorer.exe",
+    "winlogon.exe",
+    "services.exe"
+  )
+  and process.name : (
+    "cmd.exe",
+    "powershell.exe",
+    "pwsh.exe",
+    "wscript.exe",
+    "cscript.exe",
+    "mshta.exe",
+    "rundll32.exe",
+    "regsvr32.exe",
+    "certutil.exe",
+    "bitsadmin.exe"
+  )
+
+// -------------------------------------------------------
+// Pattern 2: Network connection from non-network process
+// Flags unusual processes making outbound connections —
+// may indicate injected code establishing C2
+// -------------------------------------------------------
+// sequence by process.entity_id with maxspan=1m
+//   [process where process.name : ("notepad.exe","calc.exe","mspaint.exe")]
+//   [network where network.direction == "egress"
+//     and not destination.ip : ("10.*","192.168.*","172.16.*","127.*")]
+
+// -------------------------------------------------------
+// SOC-LAB context: Tested against Mythic C2 shellcode injection
+// into explorer.exe — confirmed detection on first run.
+// Rule tuned to exclude known-good svchost child processes
+// (WerFault.exe, conhost.exe) to reduce false positives.

@@ -1,0 +1,26 @@
+// ============================================================
+// T1110.001 — SSH Brute Force Sequence Detection
+// Detects a sequence of failed SSH authentications followed by
+// a successful login from the same source — indicating successful
+// brute force after repeated attempts.
+// MITRE ATT&CK: T1110.001 — Brute Force: Password Guessing
+// Platform: Elastic SIEM (EQL) — requires Filebeat + system module
+//           or Wazuh → ELK log forwarding
+// Author: Oscar Njumbe | SOC-LAB
+// ============================================================
+
+sequence by source.ip with maxspan=2m
+  [authentication where event.action == "ssh_login" and event.outcome == "failure"] with runs=5
+  [authentication where event.action == "ssh_login" and event.outcome == "success"]
+
+// -------------------------------------------------------
+// Threshold-based variant (standalone, no sequence needed)
+// Use if EQL sequences are not available on your licence tier
+// -------------------------------------------------------
+// Index: filebeat-*, wazuh-alerts-*
+// Rule type: Threshold
+// KQL filter:
+//   event.action: "ssh_login" AND event.outcome: "failure"
+// Threshold field: source.ip
+// Threshold count: 8
+// Time window: 2 minutes

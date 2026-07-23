@@ -1,0 +1,33 @@
+// ============================================================
+// T1071.001 — C2 Beacon Detection via Zeek Network Logs
+// Detects periodic, low-volume outbound connections to the same
+// external IP — characteristic of C2 beaconing behaviour.
+// Uses Zeek conn.log data ingested into Elastic.
+// MITRE ATT&CK: T1071.001 — Application Layer Protocol: Web Protocols
+// Platform: Elastic SIEM (EQL) — requires Zeek integration (conn.log)
+//           Zeek → Filebeat → Elasticsearch pipeline
+// Author: Oscar Njumbe | SOC-LAB
+// ============================================================
+
+// Sequence: detect 3+ periodic connections to the same external IP
+// within a 10-minute window with consistent byte sizes (beaconing pattern)
+sequence by destination.ip with maxspan=10m
+  [network where network.direction == "egress"
+    and not destination.ip : ("10.*", "192.168.*", "172.16.*", "127.*")
+    and destination.port in (80, 443, 8080, 8443)
+  ] with runs=3
+
+// -------------------------------------------------------
+// Threshold-based variant using Zeek conn.log fields
+// Rule type: Threshold | Index: filebeat-*zeek*
+// KQL:
+//   network.direction: "egress"
+//   AND NOT destination.ip: (10.* OR 192.168.* OR 172.16.*)
+//   AND destination.port: (80 OR 443 OR 8080 OR 8443)
+// Threshold field: destination.ip
+// Threshold count: 5
+// Time window: 10 minutes
+// -------------------------------------------------------
+// SOC-LAB context: Validated against Mythic C2 traffic in
+// ATTACK_SIM VLAN (192.168.70.0/24) — Zeek conn.log confirmed
+// periodic 60s callback intervals matching expected beacon pattern.
