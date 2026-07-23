@@ -1,0 +1,50 @@
+// ============================================================
+// T1059.001 — PowerShell Abuse Detection
+// Detects suspicious PowerShell execution: encoded commands,
+// download cradles, execution policy bypass, and hidden windows.
+// MITRE ATT&CK: T1059.001 — Command and Scripting Interpreter: PowerShell
+// Platform: Microsoft Sentinel (SecurityEvent — requires Sysmon or AuditProcess)
+// Author: Oscar Njumbe | SOC-LAB
+// ============================================================
+
+SecurityEvent
+| where TimeGenerated > ago(1h)
+| where EventID == 4688                            // Process creation
+| where NewProcessName has_any ("powershell.exe", "pwsh.exe")
+| where CommandLine has_any (
+    "-EncodedCommand",
+    "-enc ",
+    "IEX(",
+    "Invoke-Expression",
+    "DownloadString",
+    "DownloadFile",
+    "Net.WebClient",
+    "-ExecutionPolicy Bypass",
+    "-NonInteractive",
+    "-WindowStyle Hidden",
+    "FromBase64String",
+    "Invoke-WebRequest",
+    "System.Reflection.Assembly"
+  )
+| extend SuspiciousTechnique = case(
+    CommandLine has_any ("-EncodedCommand", "-enc ", "FromBase64String"),
+        "Encoded Command — likely obfuscation",
+    CommandLine has_any ("DownloadString", "DownloadFile", "Net.WebClient", "Invoke-WebRequest"),
+        "Download Cradle — remote payload fetch",
+    CommandLine has "-ExecutionPolicy Bypass",
+        "Execution Policy Bypass",
+    CommandLine has "-WindowStyle Hidden",
+        "Hidden Window — stealth execution",
+    CommandLine has "System.Reflection.Assembly",
+        "In-Memory Assembly Load",
+    "Suspicious PowerShell"
+  )
+| project
+    TimeGenerated,
+    Computer,
+    SubjectUserName,
+    NewProcessName,
+    CommandLine,
+    SuspiciousTechnique,
+    ParentProcessName
+| sort by TimeGenerated desc

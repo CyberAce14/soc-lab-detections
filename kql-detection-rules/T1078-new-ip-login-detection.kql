@@ -1,0 +1,43 @@
+// ============================================================
+// T1078 — Valid Accounts: Login from New IP Address
+// Establishes a 14-day baseline of known good IPs per user.
+// Alerts on successful logins from IPs not seen in that window.
+// MITRE ATT&CK: T1078 — Valid Accounts
+// Platform: Microsoft Sentinel (SigninLogs)
+// Author: Oscar Njumbe | SOC-LAB
+// ============================================================
+
+let lookback        = 14d;
+let detection_window = 1h;
+
+// Build baseline of known IPs per user over the lookback period
+let knownIPs =
+    SigninLogs
+    | where TimeGenerated between (ago(lookback) .. ago(detection_window))
+    | where ResultType == "0"
+    | summarize KnownIPs = make_set(IPAddress) by UserPrincipalName;
+
+// Detect logins from IPs outside the baseline
+SigninLogs
+| where TimeGenerated > ago(detection_window)
+| where ResultType == "0"                          // Successful logins only
+| join kind=leftouter knownIPs on UserPrincipalName
+| extend IsNewIP = not(IPAddress in (KnownIPs))
+| where IsNewIP == true
+| extend RiskIndicator = case(
+    Location has_any ("Russia", "China", "North Korea", "Iran"),
+        "High-risk country login",
+    isempty(Location),
+        "Unknown geolocation",
+    "New IP — not seen in prior 14 days"
+  )
+| project
+    TimeGenerated,
+    UserPrincipalName,
+    IPAddress,
+    Location,
+    AppDisplayName,
+    AuthenticationRequirement,
+    RiskIndicator,
+    IsNewIP
+| sort by TimeGenerated desc

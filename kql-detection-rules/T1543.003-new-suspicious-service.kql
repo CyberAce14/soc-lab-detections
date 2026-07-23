@@ -1,0 +1,59 @@
+// ============================================================
+// T1543.003 — Create or Modify System Process: Windows Service
+// Detects new service installation with suspicious binary paths,
+// shell interpreters, or LOLBin executables as the service image.
+// MITRE ATT&CK: T1543.003
+// Platform: Microsoft Sentinel (SecurityEvent — Windows Event 7045)
+// Author: Oscar Njumbe | SOC-LAB
+// ============================================================
+
+SecurityEvent
+| where TimeGenerated > ago(1h)
+| where EventID == 7045                            // A new service was installed
+| extend
+    ServiceName     = tostring(EventData.ServiceName),
+    ServiceFileName = tostring(EventData.ImagePath),
+    ServiceType     = tostring(EventData.ServiceType),
+    StartType       = tostring(EventData.StartType),
+    AccountName     = tostring(EventData.AccountName)
+| where ServiceFileName has_any (
+    // Suspicious paths
+    "\\Temp\\",
+    "\\AppData\\",
+    "\\Users\\Public\\",
+    "\\Downloads\\",
+    "\\ProgramData\\",
+    // Shell / scripting engines
+    "cmd.exe",
+    "powershell.exe",
+    "pwsh.exe",
+    // LOLBins commonly abused for persistence
+    "rundll32.exe",
+    "regsvr32.exe",
+    "mshta.exe",
+    "wscript.exe",
+    "cscript.exe",
+    "msiexec.exe",
+    "certutil.exe"
+  )
+| extend SuspiciousIndicator = case(
+    ServiceFileName has_any ("\\Temp\\", "\\AppData\\", "\\Users\\Public\\", "\\Downloads\\", "\\ProgramData\\"),
+        "Suspicious path — writable user directory",
+    ServiceFileName has_any ("cmd.exe", "powershell.exe", "pwsh.exe"),
+        "Shell interpreter registered as service",
+    ServiceFileName has_any ("rundll32.exe", "regsvr32.exe", "mshta.exe", "wscript.exe", "cscript.exe"),
+        "LOLBin registered as service — likely proxy execution",
+    ServiceFileName has_any ("msiexec.exe", "certutil.exe"),
+        "Signed Microsoft binary used for persistence",
+    "Suspicious binary"
+  )
+| project
+    TimeGenerated,
+    Computer,
+    ServiceName,
+    ServiceFileName,
+    ServiceType,
+    StartType,
+    AccountName,
+    SuspiciousIndicator
+| sort by TimeGenerated desc

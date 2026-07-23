@@ -1,0 +1,53 @@
+// ============================================================
+// T1078.004 — Valid Accounts: Cloud Accounts — Impossible Travel
+// Detects successful sign-ins from different countries within a
+// short time window that would be physically impossible to travel between.
+// MITRE ATT&CK: T1078.004 — Valid Accounts: Cloud Accounts
+// Platform: Microsoft Sentinel (SigninLogs)
+// Author: Oscar Njumbe | SOC-LAB
+// ============================================================
+
+let detectionWindow = 4h;                          // Max time between logins to check
+
+SigninLogs
+| where TimeGenerated > ago(24h)
+| where ResultType == "0"                          // Successful sign-ins only
+| where isnotempty(Location)
+| extend
+    Country = tostring(LocationDetails.countryOrRegion),
+    City    = tostring(LocationDetails.city)
+| where isnotempty(Country)
+| project TimeGenerated, UserPrincipalName, IPAddress, Country, City, AppDisplayName
+| sort by UserPrincipalName asc, TimeGenerated asc
+| serialize
+| extend
+    PrevTime    = prev(TimeGenerated, 1),
+    PrevCountry = prev(Country, 1),
+    PrevCity    = prev(City, 1),
+    PrevIP      = prev(IPAddress, 1),
+    PrevUser    = prev(UserPrincipalName, 1)
+// Only compare consecutive events for the same user
+| where UserPrincipalName == PrevUser
+// Different countries only
+| where Country != PrevCountry
+| extend TimeDiffMinutes = datetime_diff('minute', TimeGenerated, PrevTime)
+// Flag if country changed in less than detectionWindow
+| where TimeDiffMinutes <= (toint(detectionWindow) * 60) and TimeDiffMinutes > 0
+| extend AlertSeverity = case(
+    TimeDiffMinutes <= 60,  "High — country change within 1 hour",
+    TimeDiffMinutes <= 120, "Medium — country change within 2 hours",
+    "Low — country change within detection window"
+  )
+| project
+    TimeGenerated,
+    UserPrincipalName,
+    CurrentCountry  = Country,
+    CurrentCity     = City,
+    CurrentIP       = IPAddress,
+    PreviousCountry = PrevCountry,
+    PreviousCity    = PrevCity,
+    PreviousIP      = PrevIP,
+    TimeDiffMinutes,
+    AlertSeverity,
+    AppDisplayName
+| sort by TimeDiffMinutes asc

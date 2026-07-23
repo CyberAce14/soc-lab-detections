@@ -1,0 +1,44 @@
+// ============================================================
+// T1110 — Brute Force Detection
+// Detects multiple failed sign-in attempts from the same source IP
+// within a rolling 5-minute window, with severity tiering.
+// MITRE ATT&CK: T1110 — Brute Force
+// Platform: Microsoft Sentinel (SigninLogs)
+// Author: Oscar Njumbe | SOC-LAB
+// ============================================================
+
+let threshold = 10;
+let timeWindow = 5m;
+
+SigninLogs
+| where TimeGenerated > ago(1h)
+| where ResultType != "0"                          // Failed sign-ins only
+| summarize
+    FailedAttempts   = count(),
+    TargetAccounts   = dcount(UserPrincipalName),
+    FirstAttempt     = min(TimeGenerated),
+    LastAttempt      = max(TimeGenerated),
+    AccountList      = make_set(UserPrincipalName, 10)
+    by IPAddress, bin(TimeGenerated, timeWindow)
+| where FailedAttempts >= threshold
+| extend AlertSeverity = case(
+    FailedAttempts >= 50, "High",
+    FailedAttempts >= 20, "Medium",
+    "Low"
+  )
+| extend AttackPattern = case(
+    TargetAccounts > 5,   "Password Spraying — multiple accounts from single IP",
+    TargetAccounts == 1,  "Brute Force — single account targeted",
+    "Mixed brute force pattern"
+  )
+| project
+    TimeGenerated,
+    IPAddress,
+    FailedAttempts,
+    TargetAccounts,
+    AccountList,
+    FirstAttempt,
+    LastAttempt,
+    AlertSeverity,
+    AttackPattern
+| sort by FailedAttempts desc
