@@ -18,7 +18,7 @@ Production detection rules, Wazuh configurations, and SOAR automation pipeline a
 soc-lab-detections/
 ├── kql-detection-rules/     # Microsoft Sentinel KQL analytics rules (7 live)
 ├── wazuh-detection-rules/   # Custom Wazuh XML rules (4 deployed)
-├── soar-pipeline/           # n8n SOAR automation pipeline (134+ alerts processed)
+├── soar-pipeline/           # n8n SOAR pipeline — triggered by Elastic (ELK) SIEM (134+ alerts processed)
 └── architecture/            # SOC-LAB environment overview
 ```
 
