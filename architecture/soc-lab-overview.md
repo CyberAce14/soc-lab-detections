@@ -41,7 +41,7 @@ ISP Router (192.168.1.1)
 - 7 KQL analytics rules (see `kql-detection-rules/`)
 
 ### On-Premise SIEM
-- **Elastic Stack** — log ingestion + Kibana dashboards
+- **Elastic Stack (ELK)** — primary on-premise SIEM; log ingestion, Kibana dashboards, and alert source for the n8n SOAR pipeline (webhook trigger)
 - **Splunk v9.1.1** — detection + analytics
 - **Wazuh** — host-based IDS + 4 custom rules (see `wazuh-detection-rules/`)
 
@@ -73,10 +73,11 @@ Attack scenarios run: ransomware simulation, lateral movement, credential dumpin
 
 ## SOAR
 
-- **n8n v2.23.3** — orchestration
-- **GPT-4.1 Mini** — AI triage (MITRE mapping, severity scoring)
-- **AbuseIPDB** — IP reputation enrichment
-- **IRIS** — case management
-- **Slack** — analyst notification
+- **Trigger:** Elastic (ELK) SIEM → HTTP POST webhook → n8n
+- **n8n v2.23.3** — orchestration (FP filter → dedup → AI triage → notification → case creation)
+- **GPT-4.1 Mini** — AI triage (MITRE mapping, severity scoring, analyst summary)
+- **AbuseIPDB** — IP reputation enrichment (invoked as GPT tool)
+- **IRIS** — case management (auto-creation at 192.168.50.70)
+- **Slack** — analyst notification (#soc-alerts)
 
 See `soar-pipeline/README.md` for full pipeline detail.
