@@ -2,13 +2,13 @@
 
 **Author:** Oscar Njumbe | Security Operations Engineer | Reading, UK  
 **Stack:** Microsoft Sentinel · Wazuh · n8n SOAR · Elastic Stack · Splunk  
-**Environment:** Production homelab — Proxmox, 13-VLAN architecture, 30+ VMs
+**Environment:** Production-style homelab — Proxmox, 10 VLAN-segmented zones (pfSense), 30 VMs
 
 ---
 
 ## Overview
 
-Production detection rules, Wazuh configurations, and SOAR automation pipeline assets deployed in a live enterprise-grade SOC homelab. All rules run against real telemetry generated through attack simulation using Kali Linux, Metasploitable2, and Mythic C2 — validated before promotion to production.
+Detection rules, Wazuh configurations, and SOAR automation pipeline assets from a production-style SOC homelab. Rules are exercised with attack simulation using Kali Linux, Metasploitable2, and Mythic C2.
 
 ---
 
@@ -16,10 +16,10 @@ Production detection rules, Wazuh configurations, and SOAR automation pipeline a
 
 ```
 soc-lab-detections/
-├── kql-detection-rules/     # Microsoft Sentinel KQL analytics rules (7 live)
+├── kql-detection-rules/     # Microsoft Sentinel KQL rules: live/ (7 enabled), reference/ (designs, not deployed)
 ├── elk-detection-rules/     # Elastic SIEM EQL detection rules (4 deployed — SOAR webhook source)
 ├── wazuh-detection-rules/   # Custom Wazuh XML rules (4 deployed)
-├── soar-pipeline/           # n8n SOAR pipeline — triggered by Elastic (ELK) SIEM (134+ alerts processed)
+├── soar-pipeline/           # n8n SOAR pipeline — triggered by Elastic (ELK) SIEM (100+ alerts processed)
 └── architecture/            # SOC-LAB environment overview
 ```
 
@@ -27,19 +27,19 @@ soc-lab-detections/
 
 ## Microsoft Sentinel — KQL Detection Rules
 
-7 analytics rules live in Sentinel, mapped to MITRE ATT&CK:
+7 scheduled analytics rules are enabled in the lab's Sentinel workspace (`kql-detection-rules/live/`), mapped to MITRE ATT&CK. Windows events arrive via Azure Monitor Agent into the `Event` table, so each rule parses the raw `EventData` XML.
 
-| Rule File | Description | MITRE TTP |
-|---|---|---|
-| `T1110-brute-force-detection.kql` | Multiple failed sign-ins from same IP | T1110 |
-| `T1059.001-powershell-abuse.kql` | Encoded commands, download cradles, bypass flags | T1059.001 |
-| `T1078-new-ip-login-detection.kql` | Login from IP not seen in prior 14 days | T1078 |
-| `T1543.003-new-suspicious-service.kql` | New service with suspicious binary path | T1543.003 |
-| `T1021.002-lateral-movement-smb.kql` | SMB network logons to multiple targets | T1021.002 |
-| `T1003.001-lsass-credential-access.kql` | LSASS memory access patterns | T1003.001 |
-| `T1078.004-impossible-travel.kql` | Sign-ins from geographically impossible locations | T1078.004 |
+| Rule File | Description | Severity | MITRE TTP |
+|---|---|---|---|
+| `T1110-failed-logon-spike.kql` | 5+ failed logons per account/IP in 1h | Medium | T1110 |
+| `T1110-successful-logon-after-failures.kql` | Successful logon after 3+ failures | High | T1110 |
+| `T1059.001-suspicious-powershell.kql` | Encoded commands, download cradles, bypass flags | High | T1059.001 |
+| `T1136-new-local-account.kql` | New user account created | High | T1136 |
+| `T1078-user-added-to-privileged-group.kql` | Account added to a privileged group | High | T1078 |
+| `T1059-shell-spawned-by-system.kql` | cmd/PowerShell/script host spawned by SYSTEM | High | T1059 |
+| `T1543.003-new-service-installed.kql` | New Windows service installed | Medium | T1543.003 |
 
-All rules include severity tiers, MITRE mapping comments, and are tuned against 14+ days of historical logs to eliminate false positives before going live.
+`kql-detection-rules/reference/` holds further rule designs (SMB lateral movement, LSASS access, new-IP login, impossible travel) written for `SecurityEvent` and `SigninLogs`. They are not deployed in the lab and have not been run against lab data.
 
 ---
 
@@ -79,10 +79,9 @@ Elastic SIEM Alert → n8n Webhook → FP Filter → Dedup Check
     → Slack Notification → IRIS Case Auto-Creation
 ```
 
-- **134+ alerts processed** with zero manual handling
+- **100+ alerts processed** automatically; analysts review and escalate in IRIS
 - AI triage: MITRE ATT&CK mapping + severity scoring per alert
 - Dedup logic + false-positive filtering built in
-- Detection-to-case time: < 60 seconds
 
 See `soar-pipeline/README.md` for architecture detail.
 
@@ -93,7 +92,7 @@ See `soar-pipeline/README.md` for architecture detail.
 | Layer | Technology |
 |---|---|
 | Hypervisor | Proxmox VE |
-| Network Segmentation | pfSense — 13 VLAN zones |
+| Network Segmentation | pfSense — 10 VLAN-segmented zones |
 | Cloud SIEM | Microsoft Sentinel + Azure Arc + AMA/DCR pipelines |
 | On-Prem SIEM | Elastic Stack · Splunk v9.1.1 · Wazuh |
 | NDR | Zeek + Security Onion |

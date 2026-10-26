@@ -1,0 +1,18 @@
+// ============================================================
+// T1136 Create Account - New user account created
+// Sentinel rule: SOC-LAB | New user account created (scheduled, enabled)
+// Severity: High | Tactic: Persistence
+// Source: Security 4720 via Azure Monitor Agent -> Event table
+// Note: the DCR routes Windows events to the Event table (not SecurityEvent),
+// so fields are parsed from the raw EventData XML with extract().
+// Author: Oscar Njumbe | SOC-LAB
+// ============================================================
+
+Event
+| where EventLog == "Security"
+| where EventID == 4720
+| extend
+    SubjectUserName = extract(@"<Data Name='SubjectUserName'>(.*?)</Data>", 1, EventData),
+    TargetUserName  = extract(@"<Data Name='TargetUserName'>(.*?)</Data>", 1, EventData)
+| where TargetUserName !endswith "$"
+| project TimeGenerated, SubjectUserName, TargetUserName, Computer

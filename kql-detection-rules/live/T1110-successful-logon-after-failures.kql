@@ -1,0 +1,29 @@
+// ============================================================
+// T1110 Brute Force - Successful logon after 3+ failures
+// Sentinel rule: SOC-LAB | Successful logon after 3+ failures (scheduled, enabled)
+// Severity: High | Tactic: Credential Access
+// Source: Security 4625 + 4624 via Azure Monitor Agent -> Event table
+// Note: the DCR routes Windows events to the Event table (not SecurityEvent),
+// so fields are parsed from the raw EventData XML with extract().
+// Author: Oscar Njumbe | SOC-LAB
+// ============================================================
+
+let failures =
+    Event
+    | where EventLog == "Security"
+    | where EventID == 4625
+    | where TimeGenerated > ago(1h)
+    | extend
+        Account   = extract(@"<Data Name='TargetUserName'>(.*?)</Data>", 1, EventData),
+        IpAddress = extract(@"<Data Name='IpAddress'>(.*?)</Data>", 1, EventData)
+    | where isnotempty(Account) and Account != "-"
+    | summarize FailCount = count() by Account, IpAddress;
+Event
+| where EventLog == "Security"
+| where EventID == 4624
+| where TimeGenerated > ago(1h)
+| extend Account = extract(@"<Data Name='TargetUserName'>(.*?)</Data>", 1, EventData)
+| where isnotempty(Account) and Account != "-"
+| join kind=inner failures on Account
+| where FailCount >= 3
+| project TimeGenerated, Account, IpAddress, FailCount, Computer

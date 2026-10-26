@@ -1,7 +1,7 @@
 # SOC-LAB Architecture Overview
 
 **Environment:** Production-grade enterprise SOC homelab  
-**Hypervisor:** Proxmox VE | **VMs:** 30+ | **Network Zones:** 13 VLAN-segmented via pfSense
+**Hypervisor:** Proxmox VE | **VMs:** 30 | **Network Zones:** 10 VLAN-segmented via pfSense
 
 ---
 

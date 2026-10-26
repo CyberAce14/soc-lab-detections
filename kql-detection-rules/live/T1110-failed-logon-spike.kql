@@ -1,0 +1,21 @@
+// ============================================================
+// T1110 Brute Force - Failed logon spike (5+ failures per account/IP in 1h)
+// Sentinel rule: SOC-LAB | Failed logon spike (5+ failures per account/IP in 1h) (scheduled, enabled)
+// Severity: Medium | Tactic: Credential Access
+// Source: Security 4625 via Azure Monitor Agent -> Event table
+// Note: the DCR routes Windows events to the Event table (not SecurityEvent),
+// so fields are parsed from the raw EventData XML with extract().
+// Author: Oscar Njumbe | SOC-LAB
+// ============================================================
+
+Event
+| where EventLog == "Security"
+| where EventID == 4625
+| where TimeGenerated > ago(1h)
+| extend
+    Account   = extract(@"<Data Name='TargetUserName'>(.*?)</Data>", 1, EventData),
+    IpAddress = extract(@"<Data Name='IpAddress'>(.*?)</Data>", 1, EventData)
+| where isnotempty(Account) and Account != "-"
+| summarize FailedAttempts = count() by Account, IpAddress, Computer
+| where FailedAttempts >= 5
+| project TimeGenerated = now(), Account, IpAddress, Computer, FailedAttempts

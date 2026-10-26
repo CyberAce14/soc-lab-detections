@@ -2,7 +2,7 @@
 
 ## Overview
 
-End-to-end SOC alert automation pipeline built on **n8n v2.23.3**, triggered via webhook from **Elastic (ELK) SIEM** and processing alerts with zero manual handling. Reduces detection-to-case time to under 60 seconds.
+End-to-end SOC alert automation pipeline built on **n8n v2.23.3**, triggered via webhook from **Elastic (ELK) SIEM** and processing alerts automatically (triage, enrichment, Slack notification and IRIS case creation), with analyst review in IRIS.
 
 ---
 
@@ -72,10 +72,7 @@ Elastic (ELK) SIEM Alert (POST)
 
 | Metric | Value |
 |---|---|
-| Alerts processed | 134+ |
-| Manual handling required | 0 |
-| Average detection-to-case time | < 60 seconds |
-| False positives suppressed | ~18% of alert volume |
+| Alerts processed | 100+ |
 
 ---
 

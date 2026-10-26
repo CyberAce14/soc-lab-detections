@@ -1,0 +1,19 @@
+// ============================================================
+// T1078 Valid Accounts - User added to a privileged group
+// Sentinel rule: SOC-LAB | User added to a privileged group (scheduled, enabled)
+// Severity: High | Tactic: Privilege Escalation
+// Source: Security 4728/4732/4756 via Azure Monitor Agent -> Event table
+// Note: the DCR routes Windows events to the Event table (not SecurityEvent),
+// so fields are parsed from the raw EventData XML with extract().
+// Author: Oscar Njumbe | SOC-LAB
+// ============================================================
+
+Event
+| where EventLog == "Security"
+| where EventID in (4728, 4732, 4756)
+| extend
+    SubjectUserName = extract(@"<Data Name='SubjectUserName'>(.*?)</Data>", 1, EventData),
+    MemberName      = extract(@"<Data Name='MemberName'>(.*?)</Data>", 1, EventData),
+    TargetUserName  = extract(@"<Data Name='TargetUserName'>(.*?)</Data>", 1, EventData)
+| where TargetUserName has_any ("Domain Admins", "Administrators", "Enterprise Admins")
+| project TimeGenerated, SubjectUserName, MemberName, TargetUserName, Computer

@@ -1,0 +1,29 @@
+// ============================================================
+// T1059.001 PowerShell - PowerShell with encoded/download/bypass flags
+// Sentinel rule: SOC-LAB | PowerShell with encoded/download/bypass flags (scheduled, enabled)
+// Severity: High | Tactic: Execution
+// Source: Security 4688 (command-line logging enabled) via Azure Monitor Agent -> Event table
+// Note: the DCR routes Windows events to the Event table (not SecurityEvent),
+// so fields are parsed from the raw EventData XML with extract().
+// Author: Oscar Njumbe | SOC-LAB
+// ============================================================
+
+Event
+| where EventLog == "Security"
+| where EventID == 4688
+| extend
+    NewProcessName = extract(@"<Data Name='NewProcessName'>(.*?)</Data>", 1, EventData),
+    CommandLine    = extract(@"<Data Name='CommandLine'>(.*?)</Data>", 1, EventData),
+    Account        = extract(@"<Data Name='SubjectUserName'>(.*?)</Data>", 1, EventData)
+| where NewProcessName has_any ("powershell", "pwsh")
+| where CommandLine has_any (
+    "-EncodedCommand",
+    "-enc ",
+    "DownloadFile",
+    "DownloadString",
+    "IEX",
+    "Invoke-Expression",
+    "WebClient",
+    "bypass"
+  )
+| project TimeGenerated, Computer, Account, CommandLine, NewProcessName

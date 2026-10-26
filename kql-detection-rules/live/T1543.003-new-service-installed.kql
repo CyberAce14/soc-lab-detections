@@ -1,0 +1,19 @@
+// ============================================================
+// T1543.003 Windows Service - New Windows service installed
+// Sentinel rule: SOC-LAB | New Windows service installed (scheduled, enabled)
+// Severity: Medium | Tactic: Persistence
+// Source: System 7045 via Azure Monitor Agent -> Event table
+// Note: the DCR routes Windows events to the Event table (not SecurityEvent),
+// so fields are parsed from the raw EventData XML with extract().
+// Author: Oscar Njumbe | SOC-LAB
+// ============================================================
+
+Event
+| where EventLog == "System"
+| where EventID == 7045
+| extend EventXml = parse_xml(EventData)
+| extend
+    ServiceName     = tostring(EventXml.EventData.Data[0]["#text"]),
+    ServiceFileName = tostring(EventXml.EventData.Data[1]["#text"]),
+    ServiceAccount  = tostring(EventXml.EventData.Data[4]["#text"])
+| project TimeGenerated, Computer, ServiceName, ServiceFileName, ServiceAccount
